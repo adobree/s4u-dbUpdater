@@ -1,0 +1,22 @@
+<ELEMENTS>
+  <PLAYLIST>
+    <id>0</id>
+    <parentid>0</parentid>
+    <matid>C:\Clips\Troye Sivan - Got Me Started.mp4</matid>
+    <realid>0</realid>
+    <type>File</type>
+    <eventname>Troye Sivan - Got Me Started.mp4</eventname>
+    <frames>4919</frames>
+    <inpoint>00:00:00:00</inpoint>
+    <outpoint>00:03:16:84</outpoint>
+    <starttime>26-09-2023 16:57:00:000</starttime>
+    <duration>00:03:16:84</duration>
+    <cashing>0</cashing>
+    <cashed>0</cashed>
+    <missed>0</missed>
+    <manualtake>false</manualtake>
+    <fixedevent>true</fixedevent>
+    <allowed>false</allowed>
+    <frrate>25</frrate>
+  </PLAYLIST>
+</ELEMENTS>
