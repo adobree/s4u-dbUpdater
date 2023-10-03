@@ -23,18 +23,32 @@ def redirect_console_to_text_widget(text_widget):
 
 def display_current_time(label):
     current_time = dt.now().strftime("%Y-%m-%d %H:%M:%S")
-    label.config(text=f"Current time: {current_time}")
+    label.config(text=f"Dátum és idő: {current_time}")
     label.after(1000, lambda: display_current_time(label))  # Update every second
 
-def start_tasks():
-    config = configparser.ConfigParser()
-    config.read('C:/data.ini')
+def update_timer():
+    global remaining_time
 
+    remaining_time -= 1
+    if remaining_time <= 0:
+        remaining_time = 100  # 5 perc újraindítása
+        label.config(text="Visszaszámláló: 5:00")
+        #Ha letelt az ido elinditja a folyamatot
+        start_tasks()
+    else:
+        minutes = remaining_time // 60
+        seconds = remaining_time % 60
+        label.config(text="Visszaszámláló: {:02d}:{:02d}".format(minutes, seconds))
+
+    root.after(1000, update_timer)
+
+def start_tasks():
     # MySQL adatbázis beállítások
     host = config['database']['host']
     user = config['database']['user']
     password = config['database']['password']
     database = config['database']['databasename']
+    tvid = config['database']['tvid']
 
     # Kapcsolódás az SQLite adatbázishoz (ha nem létezik, létrehozza)
     connDB3 = sqlite3.connect('C:/ES5Lite/PlaylistDB2.db3')
@@ -44,12 +58,6 @@ def start_tasks():
 
     directory_path = config['clips']['directory_path']
     file_names = get_file_names_in_directory(directory_path)
-
-    #video_file_path = "C:/Clips/Years & Years - King.mp4"
-    #frame_count = get_video_frame_count(video_file_path)
-    #file_size_bytes = get_video_file_size(video_file_path)
-    #formatted_duration = get_video_duration_formatted(video_file_path)
-
 
     for f_name in file_names:
         print(f_name)
@@ -101,7 +109,7 @@ def start_tasks():
                 cursorDB3.execute('INSERT INTO Files (path, filename, filesize, duration, inpoint, outpoint, type, ch, frrate, follow, promo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (video_file_path_for_DB3, f_name, file_size_bytes, frame_count, '0', frame_count, 'File', '1', '25', '0', '0'))
 
                 print(
-                    "DB3-ba beszurva.")
+                    "ES5Lite adatbázisába beszúrva.")
 
                 # Tranzakció mentése
                 connDB3.commit()
@@ -110,8 +118,8 @@ def start_tasks():
                 cursorDB3.close()
                 connDB3.close()
 
-                # Példa lekérdezés
-                query = "INSERT IGNORE INTO `clips` (`id`, `clip`, `frame`, `size`, `duration`) VALUES (NULL, %s, %s, %s, %s);"
+                # Lekérdezés
+                query = f"INSERT IGNORE INTO `{tvid}` (`id`, `clip`, `frame`, `size`, `duration`) VALUES (NULL, %s, %s, %s, %s);"
                 values = (f_name, frame_count, file_size_bytes, formatted_duration)  # A változók helyére kerülő értékek
 
                 # Kapcsolódás a MySQL adatbázishoz
@@ -125,31 +133,6 @@ def start_tasks():
                     connection.close()
 
                 print("============================")
-
-def main():
-    root = tk.Tk()
-    root.title("Console Messages")
-
-    # Create a scrolled text widget to display console messages
-    scrolled_text = ScrolledText(root, wrap=tk.WORD, width=80, height=30)
-    scrolled_text.pack(expand=True, fill=tk.BOTH)
-
-    # Redirect console messages to the text widget
-    redirect_console_to_text_widget(scrolled_text)
-
-    # Create a label to display the current time
-    time_label = tk.Label(root, text="")
-    time_label.pack()
-
-    # Display the current time
-    display_current_time(time_label)
-
-    # Create a button to start the tasks
-    start_button = tk.Button(root, text="Start Tasks", command=start_tasks)
-    start_button.pack()
-
-    # Run the main event loop
-    root.mainloop()
 
 def get_video_frame_count(video_file):
     try:
@@ -203,7 +186,6 @@ def connect_to_mysql(host, user, password, database):
         )
 
         if connection.is_connected():
-            print("Kapcsolódva a MySQL adatbázishoz")
             return connection
 
     except mysql.connector.Error as err:
@@ -221,11 +203,11 @@ def insert_data_with_variables(connection, query, values):
         # Tranzakció mentése
         connection.commit()
 
-        print("Adatok sikeresen beszúrva!")
+        print("Adat sikeresen beszúrva!")
 
     except mysql.connector.Error as err:
         connection.rollback()  # Visszagörgetjük a tranzakciót hiba esetén
-        print(f"Hiba az adatok beszúrása során: {err}")
+        print(f"Hiba az adat beszúrása során: {err}")
 
     finally:
         # Cursor lezárása
@@ -253,9 +235,89 @@ def check_if_value_exists(connection, query, value):
         if cursor:
             cursor.close()
 
+def create_table_if_not_exits():
+        # MySQL adatbázis beállítások
+        host = config['database']['host']
+        user = config['database']['user']
+        password = config['database']['password']
+        database = config['database']['databasename']
+        tvid = config['database']['tvid']
 
-if __name__ == "__main__":
-    main()
+        # Kapcsolódás az adatbázishoz
+        conn1 = mysql.connector.connect(
+            host=host,
+            user=user,
+            password=password,
+            database=database
+        )
+
+        # Adatbázis kurzor létrehozása
+        cursor1 = conn1.cursor()
+
+        # SQL lekérdezés a tábla létrehozásához
+        ct_query = f"""CREATE TABLE IF NOT EXISTS `{database}`.`{tvid}` ( `id` int(11) NOT NULL, `clip` text NOT NULL, `frame` int(11) NOT NULL, `size` bigint(20) NOT NULL, `duration` text NOT NULL ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_hungarian_ci; ALTER TABLE `{database}`.`{tvid}` ADD PRIMARY KEY (`id`); ALTER TABLE `{database}`.`{tvid}` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=55 ;)"""
+
+        # Tábla létrehozása
+        cursor1.execute(ct_query)
+
+        # Kapcsolat bezárása
+        cursor1.close()
+        conn1.close()
+
+
+# ======== MAIN ===========================================================
+
+root = tk.Tk()
+root.title(
+    " S4U - Database Updater")
+root.iconbitmap(
+    "rec.ico")
+
+config = configparser.ConfigParser()
+config.read(
+    'C:/data.ini')
+
+create_table_if_not_exits()
+
+# Create a scrolled text widget to display console messages
+scrolled_text = ScrolledText(
+    root,
+    wrap=tk.WORD,
+    width=80,
+    height=30)
+scrolled_text.pack(
+    expand=True,
+    fill=tk.BOTH)
+
+# Redirect console messages to the text widget
+redirect_console_to_text_widget(
+    scrolled_text)
+
+# Create a label to display the current time
+time_label = tk.Label(
+    root, text="")
+time_label.pack()
+
+# Display the current time
+display_current_time(
+    time_label)
+
+remaining_time = 300  # 5 perc = 300 másodperc
+
+label = tk.Label(root, text="", font=("Arial", 18))
+label.pack(padx=10, pady=10)
+
+update_timer()
+
+# Create a button to start the tasks
+start_button = tk.Button(
+    root,
+    text="Manuális indítás",
+    command=start_tasks)
+start_button.pack(padx=10, pady=10)
+
+# Run the main event loop
+root.mainloop()
 
 
 
