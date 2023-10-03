@@ -69,7 +69,7 @@ def start_tasks():
         file_names = get_file_names_in_directory(directory_path)
 
         # Lekérdezés az érték ellenőrzésére
-        query = "SELECT * FROM clips WHERE clip = %s"
+        query = f"SELECT * FROM {tvid} WHERE clip = %s"
         value_to_check = f_name  # Az ellenőrizendő érték
 
         # Kapcsolódás a MySQL adatbázishoz
@@ -114,9 +114,7 @@ def start_tasks():
                 # Tranzakció mentése
                 connDB3.commit()
 
-                # Cursor és kapcsolat lezárása
-                cursorDB3.close()
-                connDB3.close()
+
 
                 # Lekérdezés
                 query = f"INSERT IGNORE INTO `{tvid}` (`id`, `clip`, `frame`, `size`, `duration`) VALUES (NULL, %s, %s, %s, %s);"
